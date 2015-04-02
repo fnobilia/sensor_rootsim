@@ -8,8 +8,9 @@
 #include <ROOT-Sim.h>
 
 #define PACKET 1 // Event definition
+#define WAITING 2 // Event definition
 #define DELAY 120
-#define PACKETS 100 // Termination condition
+#define PACKETS 3 // Termination condition
 
 typedef struct neighbourd_t
 {
@@ -25,11 +26,13 @@ typedef struct sensor_t{
 	double coord_X;
 	double coord_Y;
 	neighbourd_t *first;
+	int *process;
 
 }sensor_t;
 
 typedef struct event_content_t {
 	simtime_t sent_at;
+	int sequential_number;
 	int pid_sensor;
 } event_t;
 

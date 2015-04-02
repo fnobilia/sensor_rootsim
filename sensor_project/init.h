@@ -9,7 +9,7 @@
 #define _TRAFFIC_INIT_H
 
 // Input definitions
-#define FILENAME	"topology.txt"
+#define FILENAME	"topology_2.txt"
 #define LINE_LENGTH	128
 
 // In a segment line, which one is the length one? (first element is 1!!!!)
@@ -19,13 +19,14 @@
 #define RADIUS_ANTENNA 6.0
 
 // Number of process
-#define NUMBER_PROCESS 10
+#define NUMBER_PROCESS 11
 
 // Set TRUE if debug
 #define DEBUG true
 #define DEBUG_INIT false
 #define DEBUG_PACKET false
 #define DEBUG_LIST_NEIGH false
+#define DEBUG_FINISH false
 
 #include "init.c"
 extern void init_my_state(unsigned int me, sensor_t *sensor);
