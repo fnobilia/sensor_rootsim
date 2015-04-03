@@ -10,15 +10,20 @@
 #include <string.h>
 #include <math.h>
 
+
+/**
+* Function to set the position of each sensor
+*/
 static void find_me(sensor_t *sensor, FILE *f) {
 	char *source;
 	char *token;
 	char line[LINE_LENGTH];
 
+	// Read all file line
 	while(fgets(line, LINE_LENGTH, f) != NULL) {
 		
 		// Skip empty lines
-		if(line[0] == '\0') // The only \n was overwritten with a \0 // FIXME: what if there are leftover spaces?
+		if(line[0] == '\0')
 			continue;
 		// Skip comments
 		if(line[0] == '#')
@@ -51,6 +56,9 @@ static void find_me(sensor_t *sensor, FILE *f) {
 	}
 }
 
+/**
+* Function to create the list of neighbours
+*/
 static void list_neighbourd(sensor_t *sensor, FILE *f){
 	char *source;
 	char *token;
@@ -60,8 +68,8 @@ static void list_neighbourd(sensor_t *sensor, FILE *f){
 	neighbourd_t *first=NULL;
 	neighbourd_t *next=NULL;
 
-
-	fprintf(stderr, "Io sono: %d position coord_X: %lf & coord_Y: %lf\n", sensor->me,sensor->coord_X,sensor->coord_Y);
+	if(DEBUG_POSITION)
+		fprintf(stderr, "Io sono: %d position coord_X: %lf & coord_Y: %lf\n", sensor->me,sensor->coord_X,sensor->coord_Y);
 
 	int counter_process = 0;
 	while(fgets(line, LINE_LENGTH, f) != NULL) {
@@ -118,6 +126,9 @@ static void list_neighbourd(sensor_t *sensor, FILE *f){
 	}
 }
 
+/**
+* Function to initialize the set sensor state
+*/
 void init_my_state(unsigned int me, sensor_t *sensor){
 	int i;
 	char line[LINE_LENGTH];
@@ -130,7 +141,7 @@ void init_my_state(unsigned int me, sensor_t *sensor){
 		exit(EXIT_FAILURE);
 	}
 
-	//Understand where I am inside the file
+	// Understand where I am inside the file
 	fseek(f, 0L, SEEK_SET);
 	find_me(sensor, f);
 

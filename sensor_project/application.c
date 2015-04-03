@@ -10,15 +10,18 @@
 #include "application.h"
 #include "init.h"
 
-
+/**
+* Function to print the current situation of local sequence number
+*/
 static void print_array(int *array,int me){
 	int i=0;
-	printf("[ARRAY PROCESS %d]",me);
-	for(i=0;i<11;i++){
-		printf("%d | ",array[i]);
+	printf("SENSOR[%d] \t [ ",me);
+	for(i=0;i<NUMBER_PROCESS;i++){
+		printf("%d ",array[i]);
 	}
-	printf("\n");
+	printf("]\n");
 }
+
 
 void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *content, unsigned int size, sensor_t *sensor) {
 	event_t new_event;
@@ -26,117 +29,175 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 
 	switch(event) {
 		
-		//Inizializza il processo
-		case INIT: {// must be ALWAYS implemented
-			if(me==0)
+		// Initialize process
+		case INIT: {
+			if(me==MASTER)
 				if (DEBUG_INIT)
-					printf("Start init \n");
+					printf("[INIT] *** START *** \n");
 			
+			/**
+			* Init data-structure of each sensor
+			*/
 			sensor =  (sensor_t *)malloc(sizeof(sensor_t));
 			sensor->me = me;
-	 		sensor->time_send = 0;
-	 		sensor->packet_count = 0;
 	 		sensor->first = NULL;
-	 		sensor->process = (int *)malloc(NUMBER_PROCESS * sizeof(int));
-	 		bzero(sensor->process,NUMBER_PROCESS * sizeof(int));
+	 		sensor->array_sn = (int *)malloc(NUMBER_PROCESS * sizeof(int));
+	 		bzero(sensor->array_sn,NUMBER_PROCESS * sizeof(int));
 	 		
 	 		SetState(sensor);
 
+	 		
+			// Parsing topology file
 	 		init_my_state(me, sensor);
 
-			// SetState(state); Serve per mappare l'indirizzo di memoria e associarlo al processo
-			timestamp = (simtime_t)(20 * Random());
-			if(me!=0)
-				ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
-			
-			if(me==0)
+			if(me != MASTER){
 				if (DEBUG_INIT)
-					printf("Finisch init \n");
+					printf("INIT send WAITING \n");
+
+				// If I am not the master, I will schedule the first event
+				timestamp = (simtime_t)(20 * Random());
+				ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
+			}
+			
+			if(me == MASTER)
+				if (DEBUG_INIT)
+					printf("[INIT] *** FINISH *** \n");
 			
 			break;
 		}
 
+		// Send data
 		case PACKET: {
-			
 
-			if(me==0){
-				if(sensor->process[content->pid_sensor] < content->sequential_number)
-					sensor->process[content->pid_sensor] = content->sequential_number;
-				sensor->process[me]++;
-				printf("[RESULT] Arrive MEX to principal sensor from \n");
-				print_array(sensor->process,me);
+			// Updating master information
+			if(me == MASTER){
+				// If the packet is new, update the value of local sequence number
+				if(sensor->array_sn[content->pid_sensor] < content->sequence_number)
+					sensor->array_sn[content->pid_sensor] = content->sequence_number;
+				
+				sensor->array_sn[me]++;
+
+				printf("[MASTER] <-- %d \n",content->pid_sensor);
+				print_array(sensor->array_sn,me);
+				printf("\n");
 
 			}
-
 			else{
 
-				//printf("[PROCESS %d] Before check sequential_number\n",me);
+				// If the packet is new
+				if(sensor->array_sn[content->pid_sensor] < content->sequence_number){
+					sensor->array_sn[content->pid_sensor] = content->sequence_number;
 
-				if(sensor->process[content->pid_sensor] < content->sequential_number){
-					sensor->process[content->pid_sensor] = content->sequential_number;
-
+					// Send message to all neighbour
 					if(sensor->first != NULL){
 						neighbourd_t *neigh = sensor->first;
 						
+						char *str;
+						char *pointer;
+						int flag = 1;
+
 						while (neigh){
-							if (DEBUG_PACKET)
-								printf("[SENSOR = %d] Receive from: %d and neight->sensor: %d\n",me,content->pid_sensor,neigh->sensor);
 							
 							if(neigh->sensor!=content->pid_sensor){
-								sensor->packet_count++;
-								timestamp = now + Expent(DELAY);
+
+								if (DEBUG_PACKET && flag){
+									str = (char*)malloc(2048*sizeof(char));
+									pointer = str;
+
+									pointer += sprintf(pointer, "SENSOR[%d] <-- %d \t [M=%d] to ",me,content->pid_sensor,sensor->array_sn[content->pid_sensor]);
+									flag = 0;
+								}
 								
 								if (DEBUG_PACKET)
-									printf("the sensor %d send mex[%d] to %d\n",me,sensor->process[content->pid_sensor],neigh->sensor);
+									pointer += sprintf(pointer, " %d ",neigh->sensor);
 								
+								if (DEBUG_LABLE)
+									printf("PACKET send PACKET \n");
 
-
+								// Send message
+								timestamp = now + Expent(DELAY);
 								ScheduleNewEvent(neigh->sensor, timestamp, PACKET, content, sizeof(content));
-								
-								ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
 
 							}
+							// Next neighbour
 							neigh = neigh->next;
 						}
-						print_array(sensor->process,me);
+
+						if (DEBUG_PACKET)
+							printf("%s\n\n",str);
+
+						if (DEBUG_ARRAY)
+							print_array(sensor->array_sn,me);
 					}
 				}
+
+				if (DEBUG_LABLE)
+					printf("PACKET send WAITING \n");
+
+				// Send me the waiting event to continue the simulation
+				timestamp = now + Expent(DELAY);
+				ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
 			}
 
 			break;
 		}
 
+		// Busy-waiting
 		case WAITING: {
+
+			// Generate message randomly
 			if(Random() > 0.5){
 
-				if (DEBUG)
-					printf("[DEBUG %d] Send MEX\n",me);
+				char *str;
+				char *pointer;
+				if (DEBUG){
+					str = (char*)malloc(2048*sizeof(char));
+					pointer = str;
+
+					pointer += sprintf(pointer, "SENSOR[%d] sends message to ",me);
+				}
 
 				if(sensor->first != NULL){
 					neighbourd_t *neigh = sensor->first;
 					
-					sensor->process[me]++;
-					new_event.sequential_number = sensor->process[me];
+					// Update local information
+					sensor->array_sn[me]++;
+					new_event.sequence_number = sensor->array_sn[me];
 					new_event.pid_sensor = me;
 
+					// Send message to each neighbour
 					while(neigh) {							
+
+						if (DEBUG)
+							pointer += sprintf(pointer, "%d ",neigh->sensor);
 						
-						sensor->packet_count++;
+						if (DEBUG_LABLE)
+							printf("WAITING send PACKET \n");
+
+						// Send message
 						timestamp = now + Expent(DELAY);
-			
-						if (DEBUG_PACKET)
-							printf("[WAITING] The sensor %d send mex[%d] to %d\n",me,new_event.sequential_number,neigh->sensor);
-								
 						ScheduleNewEvent(neigh->sensor, timestamp, PACKET, &new_event, sizeof(new_event));
 
+						// Select next sensor
 						neigh = neigh->next;
 					}
 
-					print_array(sensor->process,me);
+					if (DEBUG_PACKET)
+							printf("%s\n\n",str);
+					
+					if (DEBUG_ARRAY)
+							print_array(sensor->array_sn,me);
 				}
 
 			}
 			else{
+				if (DEBUG_WAITING)
+					printf("SENSOR[%d] *** WAITING ***\n",me);
+
+				if (DEBUG_LABLE)
+					printf("WAITING send WAITING \n");
+
+				// Without message, the sensor continues the busy-wait
 				timestamp = now + Expent(DELAY);
 				ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
 			}
@@ -150,13 +211,18 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 bool OnGVT(unsigned int me, sensor_t *snapshot) {
 	
 	if(DEBUG_FINISH){
-		printf("[CHECK FINISH] SENSOR = %d PACKETS[%d] \n",me,snapshot->process[me]);
-		print_array(snapshot->process,me);
+		printf("SENSOR[%d] SENT[%d] \n",me,snapshot->array_sn[me]);
+		print_array(snapshot->array_sn,me);
 	}
 
-	if (snapshot->process[me] < PACKETS){
+	// Exit if the sensor sent at least PACKETS message 
+	if (snapshot->array_sn[me] < PACKETS){
 		return false;
 	}
-	printf("[CHECK FINISH] SENSOR = %d STOP \n",me );
+
+	print_array(snapshot->array_sn,me);
+	printf("SENSOR[%d] *** STOP *** \n",me );
+	printf("\n");
+
 	return true;
 }

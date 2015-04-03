@@ -2,16 +2,16 @@
 -------------------- SERIAL STATISTICS ---------------------
 ------------------------------------------------------------
 
-SIMULATION STARTED AT ..... : 2015-04-02 03:25:23 
-SIMULATION FINISHED AT .... : 2015-04-02 03:25:23 
-TOTAL SIMULATION TIME ..... : 0.006 seconds 
+SIMULATION STARTED AT ..... : 2015-04-03 03:35:51 
+SIMULATION FINISHED AT .... : 2015-04-03 03:35:51 
+TOTAL SIMULATION TIME ..... : 0.005 seconds 
 
 TOTAL LPs.................. : 11 
-TOTAL EXECUTED EVENTS ..... : 474 
-AVERAGE EVENT COST......... : 12.658 us
+TOTAL EXECUTED EVENTS ..... : 353 
+AVERAGE EVENT COST......... : 14.164 us
 
 LAST COMMITTED GVT ........ : 0.000000
 AVERAGE MEMORY USAGE....... : -nan GB
-PEAK MEMORY USAGE.......... : 3.95 MB
+PEAK MEMORY USAGE.......... : 3.69 MB
 
 --------- SIMULATION CORRECTLY COMPLETED ----------
