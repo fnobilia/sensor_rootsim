@@ -65,11 +65,11 @@ static void list_neighbourd(sensor_t *sensor, FILE *f){
 	char line[LINE_LENGTH];
 	double coord_X, coord_Y;
 	unsigned int pid_sensor;
-	neighbourd_t *first=NULL;
-	neighbourd_t *next=NULL;
+	neighbourd_t *first = NULL;
+	neighbourd_t *next = NULL;
 
 	if(DEBUG_POSITION)
-		fprintf(stderr, "Io sono: %d position coord_X: %lf & coord_Y: %lf\n", sensor->me,sensor->coord_X,sensor->coord_Y);
+		fprintf(stderr, "I am %d \t ( %lf ; %lf )\n", sensor->me,sensor->coord_X,sensor->coord_Y);
 
 	int counter_process = 0;
 	while(fgets(line, LINE_LENGTH, f) != NULL) {
