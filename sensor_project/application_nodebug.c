@@ -65,9 +65,9 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 				sensor->array_sn[me]++;
 
 				if(content == NULL)
-					printf("NULL \n");
+					printf("NULL (size %d)\n",size);
 				else if(content->pid_sensor == MASTER)
-					printf("NOW \n");
+					printf("NOW size %d)\n",size);
 
 			}
 			else{
