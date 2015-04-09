@@ -7,10 +7,12 @@
 
 #include <ROOT-Sim.h>
 
-#define PACKET 1 	// Event definition
-#define WAITING 2 	// Event definition
+#define PACKET 1 			// Event definition
+#define WAITING 2 			// Event definition
 #define DELAY 120
-#define PACKETS 3 	// Termination condition
+#define PACKETS 3 			// Ending condition according to the number of packets
+#define TIME_END 200		// Ending condition according to the time
+#define TIME_FAILURE 150	// Time after that the sensor will be broken
 
 typedef struct neighbourd_t{
 	int sensor;						// Process ID
@@ -24,7 +26,9 @@ typedef struct sensor_t{
 	double coord_Y;
 	neighbourd_t *first;			// Head of neighbours list
 	int *array_sn;					// Array to store the local sequence number of each sensor
-
+	simtime_t final_time;			// Ending condition according to timestamp
+	simtime_t current_time;	
+	simtime_t failure_time;			// Expected hardware life time 
 }sensor_t;
 
 typedef struct event_content_t {

@@ -10,6 +10,7 @@
 #include "application.h"
 #include "init.h"
 
+
 /**
 * Function to print the current situation of local sequence number
 */
@@ -22,6 +23,7 @@ static void print_array(int *array,int me){
 	printf("]\n");
 }
 
+int broken = 0;
 
 void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *content, unsigned int size, sensor_t *sensor) {
 	event_t new_event;
@@ -36,6 +38,14 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 			sensor =  (sensor_t *)malloc(sizeof(sensor_t));
 			sensor->me = me;
 	 		sensor->first = NULL;
+	 		sensor->final_time = Expent(TIME_END);
+	 		sensor->current_time = 0;
+
+	 		if(Random()>0.8)
+	 			sensor->failure_time = Expent(TIME_FAILURE);
+	 		else
+	 			sensor->failure_time = sensor->final_time + 1;
+
 	 		sensor->array_sn = (int *)malloc(NUMBER_PROCESS * sizeof(int));
 	 		bzero(sensor->array_sn,NUMBER_PROCESS * sizeof(int));
 	 		
@@ -56,51 +66,57 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 		// Send data
 		case PACKET: {
 
-			// Updating master information
-			if(me == MASTER){
-				// If the packet is new, update the value of local sequence number
-				if(sensor->array_sn[content->pid_sensor] < content->sequence_number)
-					sensor->array_sn[content->pid_sensor] = content->sequence_number;
-				
-				sensor->array_sn[me]++;
+			sensor->current_time = now;
 
-				if(content == NULL)
-					printf("NULL (size %d)\n",size);
-				else if(content->pid_sensor == MASTER)
-					printf("NOW size %d)\n",size);
+			if(sensor->current_time < sensor->failure_time){
+
+				// Updating master information
+				if(me == MASTER){
+					// If the packet is new, update the value of local sequence number
+					if(sensor->array_sn[content->pid_sensor] < content->sequence_number)
+						sensor->array_sn[content->pid_sensor] = content->sequence_number;
+					
+					sensor->array_sn[me]++;
+				}
+				else{
+
+					// If the packet is new
+					if(sensor->array_sn[content->pid_sensor] < content->sequence_number){
+						sensor->array_sn[content->pid_sensor] = content->sequence_number;
+
+						// Send message to all neighbour
+						if(sensor->first != NULL){
+							neighbourd_t *neigh = sensor->first;
+							
+							char *str;
+							char *pointer;
+							int flag = 1;
+
+							while (neigh){
+								
+								if(neigh->sensor != content->pid_sensor){
+									// Send message
+									timestamp = now + Expent(DELAY);
+									ScheduleNewEvent(neigh->sensor, timestamp, PACKET, content, sizeof(content));
+								}
+
+								// Next neighbour
+								neigh = neigh->next;
+							}
+						}
+					}
+
+					// Send me the waiting event to continue the simulation
+					timestamp = now + Expent(DELAY);
+					ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
+				}
 
 			}
 			else{
-
-				// If the packet is new
-				if(sensor->array_sn[content->pid_sensor] < content->sequence_number){
-					sensor->array_sn[content->pid_sensor] = content->sequence_number;
-
-					// Send message to all neighbour
-					if(sensor->first != NULL){
-						neighbourd_t *neigh = sensor->first;
-						
-						char *str;
-						char *pointer;
-						int flag = 1;
-
-						while (neigh){
-							
-							if(neigh->sensor != content->pid_sensor){
-								// Send message
-								timestamp = now + Expent(DELAY);
-								ScheduleNewEvent(neigh->sensor, timestamp, PACKET, content, sizeof(content));
-							}
-
-							// Next neighbour
-							neigh = neigh->next;
-						}
-					}
+				if(!broken){
+					printf("SENSOR[%d] ***BROKEN*** \n\n",me);
+					broken = 1;
 				}
-
-				// Send me the waiting event to continue the simulation
-				timestamp = now + Expent(DELAY);
-				ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
 			}
 
 			break;
@@ -109,8 +125,10 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 		// Busy-waiting, state reachable from all sensor exception for MASTER
 		case WAITING: {
 
+			sensor->current_time = now;
+
 			// Generate message randomly
-			if((Random() > 0.5)){
+			if((Random() > 0.5) && (sensor->current_time < sensor->failure_time)){
 
 				char *str;
 				char *pointer;
@@ -123,10 +141,6 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 					new_event.sequence_number = sensor->array_sn[me];
 					new_event.pid_sensor = me;
 
-					if(me == MASTER){
-						printf("Master sends message to master! \n");
-					}
-
 					// Send message to each neighbour
 					while(neigh) {							
 
@@ -137,6 +151,10 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 						// Select next sensor
 						neigh = neigh->next;
 					}
+
+					// Start busy-waiting
+					timestamp = now + Expent(DELAY);
+					ScheduleNewEvent(me, timestamp, WAITING, NULL, 0);
 				}
 
 			}
@@ -156,12 +174,16 @@ void ProcessEvent(unsigned int me, simtime_t now, unsigned int event, event_t *c
 bool OnGVT(unsigned int me, sensor_t *snapshot) {
 
 	// Exit if the sensor sent at least PACKETS message 
-	if (snapshot->array_sn[me] < PACKETS){
+	/*if (snapshot->array_sn[me] < PACKETS){
 		return false;
-	}
+	}*/
 
-	printf("SENSOR[%d] *** STOP *** \n",me );
-	printf("\n");
+	if (snapshot->current_time < snapshot->final_time){
+		//printf("SENSOR[%d] Current=%lf Final=%lf \n",me,snapshot->current_time,snapshot->final_time);
+		return false;
+	}	
+
+	printf("SENSOR[%d] *** STOP *** \n\n",me );
 
 	return true;
 }
